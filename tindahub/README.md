@@ -1,31 +1,30 @@
-# tindahub
+# TindaHub
 
-A new Flutter project.
+TindaHub is a mobile app for sari-sari store owners to keep product stock, daily
+sales, and customer utang in one place.
 
-## Getting Started
+## Current MVP
 
-This project is a starting point for a Flutter application.
+- Dashboard with daily sales, total utang, and low-stock alerts
+- Product list with search, add, edit, and delete
+- Sale recording for paid purchases or customer credit
+- Automatic stock deductions when a sale is saved
+- Customer utang balances with payment recording and account activity
+- Daily summary showing paid and credit sales
 
-A few resources to get you started if this is your first Flutter project:
+The current version uses sample data stored in memory. Changes are lost when the
+app restarts. Open Food Facts lookup and persistent storage are planned follow-up
+work.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Project member
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-
-# Tindahub
-
-A mobile app that helps sari-sari store owners track their stock, daily sales, and customer utang in one place.
-
-## Member
 - Camella Kim B. Blancia
 
-## Features (planned)
-- Product and stock list with low-stock alerts
-- Quick sale recording (paid or utang)
-- Utang ledger per customer
-- Daily sales summary
-- Low-Stock Alerts 
+## Run locally
+
+From the `tindahub` project directory:
+
+```sh
+flutter pub get
+flutter run
+```
