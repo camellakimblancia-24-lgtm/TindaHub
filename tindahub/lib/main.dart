@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
+import 'open_food_facts.dart';
 
 void main() {
   runApp(const TindaHubApp());
 }
 
-const _green = Color(0xFF176B45);
-const _lightGreen = Color(0xFFEAF5EE);
+const _green = Color(0xFF527453);
+const _lightGreen = Color(0xFFEAF1E4);
+const _orange = Color(0xFFF38B2D);
+const _cream = Color(0xFFFFF9F1);
+const _ink = Color(0xFF292D24);
 
 String _peso(double amount) => '₱${amount.toStringAsFixed(2)}';
+
+String _productMetadata(StoreProduct product) => [
+  if (product.brand != null) product.brand!,
+  if (product.size != null) product.size!,
+].join(' • ');
 
 class StoreProduct {
   StoreProduct({
@@ -15,12 +24,20 @@ class StoreProduct {
     required this.name,
     required this.price,
     required this.stock,
+    this.barcode,
+    this.brand,
+    this.size,
+    this.imageUrl,
   });
 
   final String id;
   String name;
   double price;
   int stock;
+  String? barcode;
+  String? brand;
+  String? size;
+  String? imageUrl;
 }
 
 class LedgerEntry {
@@ -82,6 +99,7 @@ class TindaHubApp extends StatefulWidget {
 }
 
 class _TindaHubAppState extends State<TindaHubApp> {
+  final _navigatorKey = GlobalKey<NavigatorState>();
   final _products = <StoreProduct>[
     StoreProduct(id: '1', name: 'Rice (1 kg)', price: 58, stock: 12),
     StoreProduct(id: '2', name: 'Instant noodles', price: 15, stock: 4),
@@ -120,6 +138,7 @@ class _TindaHubAppState extends State<TindaHubApp> {
     SaleRecord(total: 850, date: DateTime.now(), isPaid: true),
   ];
   int _selectedTab = 0;
+  String _ownerName = 'Store owner';
 
   void _saveSale(List<SaleLine> lines, bool isPaid, String? customerName) {
     final total = lines.fold<double>(0, (sum, line) => sum + line.total);
@@ -160,7 +179,11 @@ class _TindaHubAppState extends State<TindaHubApp> {
         );
         customer.history.add(
           LedgerEntry(
-            description: 'Credit sale',
+            description:
+                'Credit sale: ${lines.map((line) {
+                  final metadata = _productMetadata(line.product);
+                  return '${line.product.name}${metadata.isEmpty ? '' : ' ($metadata)'} × ${line.quantity}';
+                }).join(', ')}',
             amount: total,
             date: DateTime.now(),
             isPayment: false,
@@ -180,8 +203,10 @@ class _TindaHubAppState extends State<TindaHubApp> {
         products: _products,
         customers: _customers,
         dailySales: todaySales,
+        ownerName: _ownerName,
         onOpenTab: (index) => setState(() => _selectedTab = index),
-        onAddSale: _openSale,
+        onAddSale: () => _openSale(),
+        onAddProduct: (product) => _openSale(selectedProductId: product.id),
       ),
       ProductListScreen(
         products: _products,
@@ -194,7 +219,11 @@ class _TindaHubAppState extends State<TindaHubApp> {
               _products[index]
                 ..name = product.name
                 ..price = product.price
-                ..stock = product.stock;
+                ..stock = product.stock
+                ..barcode = product.barcode
+                ..brand = product.brand
+                ..size = product.size
+                ..imageUrl = product.imageUrl;
             }
           });
         },
@@ -224,15 +253,75 @@ class _TindaHubAppState extends State<TindaHubApp> {
     final titles = ['TindaHub', 'Products', 'Utang Ledger', 'Daily Summary'];
 
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: 'TindaHub',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: _green),
-        scaffoldBackgroundColor: const Color(0xFFF7F9F7),
+        colorScheme: ColorScheme.fromSeed(seedColor: _orange),
+        scaffoldBackgroundColor: _cream,
+        cardTheme: CardThemeData(
+          color: Colors.white,
+          elevation: 1,
+          shadowColor: const Color(0x140E2410),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+          margin: EdgeInsets.zero,
+        ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFF7F9F7),
-          foregroundColor: Color(0xFF183329),
+          backgroundColor: _cream,
+          foregroundColor: _ink,
           centerTitle: false,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+        ),
+        navigationBarTheme: NavigationBarThemeData(
+          backgroundColor: Colors.white,
+          indicatorColor: const Color(0xFFFFE8D1),
+          elevation: 8,
+          height: 72,
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            final selected = states.contains(WidgetState.selected);
+            return TextStyle(
+              fontSize: 12,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: selected ? _orange : const Color(0xFF888A80),
+            );
+          }),
+          iconTheme: WidgetStateProperty.resolveWith((states) {
+            final selected = states.contains(WidgetState.selected);
+            return IconThemeData(color: selected ? _orange : _green);
+          }),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 15,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: const BorderSide(color: Color(0xFFECEDE5)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: const BorderSide(color: _orange, width: 1.5),
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: _orange,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            minimumSize: const Size(48, 48),
+          ),
         ),
         useMaterial3: true,
       ),
@@ -243,21 +332,28 @@ class _TindaHubAppState extends State<TindaHubApp> {
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           actions: [
-            if (_selectedTab == 0)
-              Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: CircleAvatar(
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: IconButton(
+                tooltip: 'Edit owner name',
+                onPressed: _editOwnerName,
+                style: IconButton.styleFrom(
                   backgroundColor: _lightGreen,
-                  child: const Icon(Icons.storefront, color: _green),
+                  foregroundColor: _green,
+                ),
+                icon: Text(
+                  _ownerName.isEmpty ? 'T' : _ownerName[0].toUpperCase(),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
+            ),
           ],
         ),
         body: IndexedStack(index: _selectedTab, children: pages),
         floatingActionButton: _selectedTab == 0
             ? FloatingActionButton.extended(
                 onPressed: _openSale,
-                backgroundColor: _green,
+                backgroundColor: _orange,
                 foregroundColor: Colors.white,
                 icon: const Icon(Icons.add_shopping_cart),
                 label: const Text('Add Sale'),
@@ -294,14 +390,86 @@ class _TindaHubAppState extends State<TindaHubApp> {
     );
   }
 
-  Future<void> _openSale() async {
-    await Navigator.of(context).push<void>(
+  Future<void> _openSale({String? selectedProductId}) async {
+    await _navigatorKey.currentState!.push<void>(
       MaterialPageRoute(
-        builder: (context) =>
-            AddSaleScreen(products: _products, onSave: _saveSale),
+        builder: (context) => AddSaleScreen(
+          products: _products,
+          onSave: _saveSale,
+          selectedProductId: selectedProductId,
+        ),
       ),
     );
     if (mounted) setState(() {});
+  }
+
+  Future<void> _editOwnerName() async {
+    final updatedName = await showDialog<String>(
+      context: _navigatorKey.currentContext!,
+      builder: (dialogContext) => _EditOwnerNameDialog(name: _ownerName),
+    );
+    if (updatedName != null && mounted) {
+      setState(() => _ownerName = updatedName);
+    }
+  }
+}
+
+class _EditOwnerNameDialog extends StatefulWidget {
+  const _EditOwnerNameDialog({required this.name});
+
+  final String name;
+
+  @override
+  State<_EditOwnerNameDialog> createState() => _EditOwnerNameDialogState();
+}
+
+class _EditOwnerNameDialogState extends State<_EditOwnerNameDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.name);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Store owner name'),
+    content: Form(
+      key: _formKey,
+      child: TextFormField(
+        controller: _controller,
+        autofocus: true,
+        textCapitalization: TextCapitalization.words,
+        decoration: const InputDecoration(
+          labelText: 'Your name',
+          prefixIcon: Icon(Icons.person_outline),
+        ),
+        validator: (value) =>
+            value == null || value.trim().isEmpty ? 'Enter your name' : null,
+        onFieldSubmitted: (_) => _save(),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: _save, child: const Text('Save name')),
+    ],
+  );
+
+  void _save() {
+    if (_formKey.currentState!.validate()) {
+      Navigator.pop(context, _controller.text.trim());
+    }
   }
 }
 
@@ -310,145 +478,628 @@ bool _sameDay(DateTime first, DateTime second) =>
     first.month == second.month &&
     first.day == second.day;
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
     required this.products,
     required this.customers,
     required this.dailySales,
+    required this.ownerName,
     required this.onOpenTab,
     required this.onAddSale,
+    required this.onAddProduct,
     super.key,
   });
 
   final List<StoreProduct> products;
   final List<StoreCustomer> customers;
   final double dailySales;
+  final String ownerName;
   final ValueChanged<int> onOpenTab;
   final VoidCallback onAddSale;
+  final ValueChanged<StoreProduct> onAddProduct;
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final _searchController = TextEditingController();
+  final _categories = const ['All', 'Staples', 'Snacks', 'Drinks', 'Canned'];
+  String _selectedCategory = 'All';
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final lowStock = products.where((product) => product.stock <= 5).toList();
-    final totalUtang = customers.fold<double>(
+    final lowStock = widget.products
+        .where((product) => product.stock <= 5)
+        .toList();
+    final totalUtang = widget.customers.fold<double>(
       0,
       (sum, customer) => sum + customer.balance,
     );
+    final filteredProducts = widget.products.where((product) {
+      final matchesSearch = product.name.toLowerCase().contains(
+        _query.toLowerCase(),
+      );
+      final matchesCategory =
+          _selectedCategory == 'All' ||
+          _productCategory(product) == _selectedCategory;
+      return matchesSearch && matchesCategory;
+    }).toList();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
       children: [
-        Text(
-          'Good day, Store Owner!',
-          style: Theme.of(
-            context,
-          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Here’s how your store is doing today.',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: Colors.black54),
-        ),
-        const SizedBox(height: 20),
-        _SalesOverviewCard(amount: dailySales),
-        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
-              child: _MetricCard(
-                icon: Icons.inventory_2_outlined,
-                label: 'Products',
-                value: '${products.length}',
-                tint: const Color(0xFFEAF1FF),
-                onTap: () => onOpenTab(1),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Good morning,',
+                    style: TextStyle(color: Color(0xFF77796F), fontSize: 14),
+                  ),
+                  Text(
+                    '${widget.ownerName} 👋',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: _ink,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: _lightGreen,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(Icons.storefront_rounded, color: _green),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        Text(
+          'Everything your shop needs,',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: _ink,
+            height: 1.15,
+          ),
+        ),
+        Text(
+          'all in one little hub.',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: _green,
+            height: 1.15,
+          ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) => setState(() => _query = value.trim()),
+                decoration: const InputDecoration(
+                  hintText: 'Search your products...',
+                  prefixIcon: Icon(Icons.search_rounded),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Material(
+              color: _lightGreen,
+              borderRadius: BorderRadius.circular(18),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () => widget.onOpenTab(1),
+                child: const SizedBox(
+                  width: 54,
+                  height: 54,
+                  child: Icon(Icons.tune_rounded, color: _green),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        SizedBox(
+          height: 42,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _categories.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final category = _categories[index];
+              final selected = category == _selectedCategory;
+              return ChoiceChip(
+                label: Text(category),
+                selected: selected,
+                showCheckmark: false,
+                onSelected: (_) => setState(() => _selectedCategory = category),
+                selectedColor: _orange,
+                backgroundColor: Colors.white,
+                side: BorderSide.none,
+                labelStyle: TextStyle(
+                  color: selected ? Colors.white : _ink,
+                  fontWeight: FontWeight.w600,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 22),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Popular items',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: _ink,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => widget.onOpenTab(1),
+              child: const Text('See all'),
+            ),
+          ],
+        ),
+        if (filteredProducts.isEmpty)
+          const _EmptyCard(message: 'No matching products in your shop.')
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: filteredProducts.length > 6
+                ? 6
+                : filteredProducts.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              mainAxisExtent: 228,
+            ),
+            itemBuilder: (context, index) {
+              final product = filteredProducts[index];
+              return _BrowseProductCard(
+                product: product,
+                onOpen: () => _showProductDetails(context, product),
+                onAdd: () => widget.onAddProduct(product),
+              );
+            },
+          ),
+        const SizedBox(height: 22),
+        Row(
+          children: [
+            Expanded(
+              child: _HomeStatCard(
+                label: 'TODAY’S SALES',
+                value: _peso(widget.dailySales),
+                icon: Icons.trending_up_rounded,
+                tint: const Color(0xFFFFEBD8),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _MetricCard(
-                icon: Icons.people_outline,
+              child: _HomeStatCard(
                 label: 'Total utang',
                 value: _peso(totalUtang),
-                tint: const Color(0xFFFFF3DF),
-                onTap: () => onOpenTab(2),
+                icon: Icons.menu_book_rounded,
+                tint: _lightGreen,
+                onTap: () => widget.onOpenTab(2),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 24),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Low-stock alerts',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            TextButton(
-              onPressed: () => onOpenTab(1),
-              child: const Text('View all'),
-            ),
-          ],
+        const SizedBox(height: 22),
+        Text(
+          'Low-stock alerts',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
+        const SizedBox(height: 10),
         if (lowStock.isEmpty)
           const _EmptyCard(message: 'All products are well stocked.')
         else
           ...lowStock
               .take(3)
               .map(
-                (product) => Card(
-                  elevation: 0,
-                  color: Colors.white,
-                  child: ListTile(
-                    leading: const CircleAvatar(
-                      backgroundColor: Color(0xFFFFF0EC),
-                      child: Icon(
-                        Icons.warning_amber_rounded,
-                        color: Color(0xFFB94A32),
+                (product) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Card(
+                    child: ListTile(
+                      leading: _ProductThumbnail(
+                        product: product,
+                        fallbackIcon: Icons.warning_amber_rounded,
+                        backgroundColor: const Color(0xFFFFF0EC),
                       ),
+                      title: Text(
+                        product.name,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text('${product.stock} left in stock'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => widget.onOpenTab(1),
                     ),
-                    title: Text(
-                      product.name,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text('${product.stock} left in stock'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => onOpenTab(1),
                   ),
                 ),
               ),
-        const SizedBox(height: 20),
-        Text(
-          'Quick actions',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        Row(
+      ],
+    );
+  }
+
+  Future<void> _showProductDetails(
+    BuildContext context,
+    StoreProduct product,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _ProductDetailsSheet(
+        product: product,
+        onAdd: () {
+          Navigator.pop(context);
+          widget.onAddProduct(product);
+        },
+      ),
+    );
+  }
+}
+
+String _productCategory(StoreProduct product) {
+  final name = product.name.toLowerCase();
+  if (name.contains('rice') ||
+      name.contains('sugar') ||
+      name.contains('flour')) {
+    return 'Staples';
+  }
+  if (name.contains('noodle') ||
+      name.contains('chip') ||
+      name.contains('snack')) {
+    return 'Snacks';
+  }
+  if (name.contains('water') ||
+      name.contains('juice') ||
+      name.contains('drink') ||
+      name.contains('soda')) {
+    return 'Drinks';
+  }
+  if (name.contains('canned') ||
+      name.contains('sardine') ||
+      name.contains('tuna')) {
+    return 'Canned';
+  }
+  return 'All';
+}
+
+class _BrowseProductCard extends StatelessWidget {
+  const _BrowseProductCard({
+    required this.product,
+    required this.onOpen,
+    required this.onAdd,
+  });
+
+  final StoreProduct product;
+  final VoidCallback onOpen;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final background = product.stock <= 5
+        ? const Color(0xFFFFE4D9)
+        : const Color(0xFFEAF1E4);
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onOpen,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: _QuickAction(
-                icon: Icons.add_shopping_cart,
-                label: 'Record a sale',
-                onTap: onAddSale,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Container(
+                    color: background,
+                    child: product.imageUrl == null
+                        ? Center(
+                            child: Text(
+                              _productEmoji(product),
+                              style: const TextStyle(fontSize: 62),
+                            ),
+                          )
+                        : Image.network(
+                            product.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Center(
+                                  child: Text(
+                                    _productEmoji(product),
+                                    style: const TextStyle(fontSize: 62),
+                                  ),
+                                ),
+                          ),
+                  ),
+                  Positioned(
+                    top: 9,
+                    left: 9,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${product.stock} left',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: _ink,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _QuickAction(
-                icon: Icons.menu_book,
-                label: 'View utang',
-                onTap: () => onOpenTab(2),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(11, 8, 8, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          product.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: _ink,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          _peso(product.price),
+                          style: const TextStyle(
+                            color: _ink,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Material(
+                    color: _orange,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: onAdd,
+                      child: const SizedBox(
+                        width: 34,
+                        height: 34,
+                        child: Icon(Icons.add, color: Colors.white, size: 20),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
-      ],
+      ),
     );
   }
+}
+
+String _productEmoji(StoreProduct product) {
+  final name = product.name.toLowerCase();
+  if (name.contains('rice')) return '🍚';
+  if (name.contains('noodle')) return '🍜';
+  if (name.contains('sardine') || name.contains('canned')) return '🥫';
+  if (name.contains('water')) return '💧';
+  if (name.contains('fruit')) return '🍊';
+  return '🛍️';
+}
+
+class _HomeStatCard extends StatelessWidget {
+  const _HomeStatCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.tint,
+    this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color tint;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(22),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: tint,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: _green, size: 21),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF77796F),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      value,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: _ink,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _ProductDetailsSheet extends StatelessWidget {
+  const _ProductDetailsSheet({required this.product, required this.onAdd});
+
+  final StoreProduct product;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    top: false,
+    child: Container(
+      margin: const EdgeInsets.only(top: 36),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 22),
+      decoration: const BoxDecoration(
+        color: _cream,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFD8D8CE),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Container(
+              width: double.infinity,
+              height: 210,
+              color: _lightGreen,
+              child: product.imageUrl == null
+                  ? Center(
+                      child: Text(
+                        _productEmoji(product),
+                        style: const TextStyle(fontSize: 90),
+                      ),
+                    )
+                  : Image.network(
+                      product.imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Center(
+                        child: Text(
+                          _productEmoji(product),
+                          style: const TextStyle(fontSize: 90),
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            product.name,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: _ink,
+            ),
+          ),
+          if (_productMetadata(product).isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              _productMetadata(product),
+              style: const TextStyle(color: Color(0xFF77796F)),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _peso(product.price),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: _ink,
+                  ),
+                ),
+              ),
+              Text(
+                '${product.stock} in stock',
+                style: const TextStyle(
+                  color: _green,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: product.stock <= 0 ? null : onAdd,
+              icon: const Icon(Icons.add_shopping_cart_rounded),
+              label: const Text('Record a sale'),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _SalesOverviewCard extends StatelessWidget {
@@ -458,36 +1109,71 @@ class _SalesOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(20),
+    padding: const EdgeInsets.all(22),
     decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(20),
-      gradient: const LinearGradient(colors: [_green, Color(0xFF2D8A60)]),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Row(
-          children: [
-            Icon(Icons.trending_up, color: Colors.white70),
-            SizedBox(width: 8),
-            Text(
-              'TODAY’S SALES',
-              style: TextStyle(color: Colors.white70, letterSpacing: 1),
-            ),
-          ],
+      borderRadius: BorderRadius.circular(28),
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [_orange, Color(0xFFFFA64D)],
+      ),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x33F38B2D),
+          blurRadius: 20,
+          offset: Offset(0, 10),
         ),
-        const SizedBox(height: 12),
-        Text(
-          _peso(amount),
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+      ],
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.trending_up, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text(
+                    'TODAY’S SALES',
+                    style: TextStyle(
+                      color: Colors.white,
+                      letterSpacing: 1,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _peso(amount),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Total value of sales recorded today',
+                style: TextStyle(color: Color(0xFFFFF3E7)),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 4),
-        const Text(
-          'Total value of sales recorded today',
-          style: TextStyle(color: Colors.white70),
+        const SizedBox(width: 10),
+        Container(
+          width: 68,
+          height: 68,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: const Icon(
+            Icons.shopping_basket_rounded,
+            color: Colors.white,
+            size: 34,
+          ),
         ),
       ],
     ),
@@ -514,7 +1200,7 @@ class _MetricCard extends StatelessWidget {
     elevation: 0,
     color: Colors.white,
     child: InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(22),
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -528,38 +1214,15 @@ class _MetricCard extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               value,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: _ink,
+              ),
             ),
             Text(label, style: const TextStyle(color: Colors.black54)),
           ],
         ),
       ),
-    ),
-  );
-}
-
-class _QuickAction extends StatelessWidget {
-  const _QuickAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => OutlinedButton.icon(
-    onPressed: onTap,
-    icon: Icon(icon),
-    label: Text(label),
-    style: OutlinedButton.styleFrom(
-      foregroundColor: _green,
-      minimumSize: const Size.fromHeight(54),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
   );
 }
@@ -598,6 +1261,44 @@ class ProductListScreen extends StatefulWidget {
   State<ProductListScreen> createState() => _ProductListScreenState();
 }
 
+class _ProductThumbnail extends StatelessWidget {
+  const _ProductThumbnail({
+    required this.product,
+    required this.fallbackIcon,
+    this.backgroundColor = _lightGreen,
+  });
+
+  final StoreProduct product;
+  final IconData fallbackIcon;
+  final Color backgroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Icon(fallbackIcon, color: _green),
+    );
+    final imageUrl = product.imageUrl;
+    if (imageUrl == null) return fallback;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: Image.network(
+        imageUrl,
+        width: 56,
+        height: 56,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => fallback,
+      ),
+    );
+  }
+}
+
 class _ProductListScreenState extends State<ProductListScreen> {
   String _query = '';
 
@@ -612,7 +1313,40 @@ class _ProductListScreenState extends State<ProductListScreen> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Your stock',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: _ink,
+                      ),
+                    ),
+                    Text(
+                      '${widget.products.length} items in your shop',
+                      style: const TextStyle(color: Color(0xFF7A7D72)),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFEBD8),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(Icons.inventory_2_outlined, color: _orange),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
           child: Row(
             children: [
               Expanded(
@@ -620,12 +1354,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   decoration: InputDecoration(
                     hintText: 'Search products',
                     prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
                   ),
                   onChanged: (value) => setState(() => _query = value.trim()),
                 ),
@@ -635,7 +1363,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 onPressed: _addProduct,
                 icon: const Icon(Icons.add),
                 label: const Text('Add'),
-                style: FilledButton.styleFrom(backgroundColor: _green),
+                style: FilledButton.styleFrom(backgroundColor: _orange),
               ),
             ],
           ),
@@ -644,7 +1372,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
           child: filtered.isEmpty
               ? const Center(child: Text('No products found.'))
               : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
                   itemCount: filtered.length,
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 8),
@@ -656,22 +1384,26 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       color: Colors.white,
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 6,
+                          horizontal: 14,
+                          vertical: 9,
                         ),
-                        leading: CircleAvatar(
-                          backgroundColor: _lightGreen,
-                          child: const Icon(
-                            Icons.inventory_2_outlined,
-                            color: _green,
-                          ),
+                        leading: _ProductThumbnail(
+                          product: product,
+                          fallbackIcon: Icons.inventory_2_outlined,
                         ),
                         title: Text(
                           product.name,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: _ink,
+                          ),
                         ),
                         subtitle: Text(
-                          '${_peso(product.price)}  •  ${product.stock} in stock',
+                          [
+                            '${_peso(product.price)}  •  ${product.stock} in stock',
+                            if (_productMetadata(product).isNotEmpty)
+                              _productMetadata(product),
+                          ].join('  •  '),
                         ),
                         trailing: PopupMenuButton<String>(
                           onSelected: (value) {
@@ -689,7 +1421,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                             ),
                           ],
                         ),
-                        isThreeLine: false,
+                        isThreeLine:
+                            product.brand != null || product.size != null,
                         dense: false,
                         subtitleTextStyle: TextStyle(
                           color: isLow
@@ -758,10 +1491,18 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _priceController;
   late final TextEditingController _stockController;
+  late final TextEditingController _barcodeController;
+  late final OpenFoodFactsService _openFoodFactsService;
+  String? _brand;
+  String? _size;
+  String? _imageUrl;
+  String? _lookupError;
+  bool _isLookingUp = false;
 
   @override
   void initState() {
     super.initState();
+    _openFoodFactsService = OpenFoodFactsService();
     _nameController = TextEditingController(text: widget.product?.name ?? '');
     _priceController = TextEditingController(
       text: widget.product?.price.toString() ?? '',
@@ -769,6 +1510,12 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     _stockController = TextEditingController(
       text: widget.product?.stock.toString() ?? '',
     );
+    _barcodeController = TextEditingController(
+      text: widget.product?.barcode ?? '',
+    );
+    _brand = widget.product?.brand;
+    _size = widget.product?.size;
+    _imageUrl = widget.product?.imageUrl;
   }
 
   @override
@@ -776,17 +1523,117 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     _nameController.dispose();
     _priceController.dispose();
     _stockController.dispose();
+    _barcodeController.dispose();
+    _openFoodFactsService.close();
     super.dispose();
+  }
+
+  Future<void> _lookupProduct() async {
+    final barcode = _barcodeController.text.trim();
+    if (barcode.isEmpty) {
+      setState(() => _lookupError = 'Enter a barcode to look up.');
+      return;
+    }
+
+    setState(() {
+      _isLookingUp = true;
+      _lookupError = null;
+      _brand = null;
+      _size = null;
+      _imageUrl = null;
+    });
+    try {
+      final product = await _openFoodFactsService.lookupByBarcode(barcode);
+      if (!mounted) return;
+      if (product == null) {
+        setState(() {
+          _lookupError =
+              'No product found. Enter the product details manually.';
+        });
+        return;
+      }
+      setState(() {
+        _nameController.text = product.name;
+        _barcodeController.text = product.barcode;
+        _brand = product.brand;
+        _size = product.size;
+        _imageUrl = product.imageUrl;
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() => _lookupError = 'Product lookup failed: $error');
+    } finally {
+      if (mounted) setState(() => _isLookingUp = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: Text(widget.product == null ? 'Add product' : 'Edit product'),
+    scrollable: true,
     content: Form(
       key: _formKey,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _barcodeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Barcode',
+                    hintText: 'Scan or enter barcode',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filled(
+                tooltip: 'Look up product',
+                onPressed: _isLookingUp ? null : _lookupProduct,
+                icon: _isLookingUp
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.search),
+              ),
+            ],
+          ),
+          if (_lookupError != null) ...[
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _lookupError!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          ],
+          if (_brand != null || _size != null || _imageUrl != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (_imageUrl != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Image.network(
+                      _imageUrl!,
+                      width: 48,
+                      height: 48,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Icon(Icons.image_not_supported_outlined),
+                    ),
+                  ),
+                Expanded(
+                  child: Text([_brand, _size].whereType<String>().join(' • ')),
+                ),
+              ],
+            ),
+          ],
           TextFormField(
             controller: _nameController,
             decoration: const InputDecoration(labelText: 'Product name'),
@@ -836,6 +1683,12 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
               name: _nameController.text.trim(),
               price: double.parse(_priceController.text),
               stock: int.parse(_stockController.text),
+              barcode: _barcodeController.text.trim().isEmpty
+                  ? null
+                  : _barcodeController.text.trim(),
+              brand: _brand,
+              size: _size,
+              imageUrl: _imageUrl,
             ),
           );
         },
@@ -849,11 +1702,13 @@ class AddSaleScreen extends StatefulWidget {
   const AddSaleScreen({
     required this.products,
     required this.onSave,
+    this.selectedProductId,
     super.key,
   });
 
   final List<StoreProduct> products;
   final void Function(List<SaleLine>, bool, String?) onSave;
+  final String? selectedProductId;
 
   @override
   State<AddSaleScreen> createState() => _AddSaleScreenState();
@@ -863,6 +1718,18 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
   final _quantities = <String, int>{};
   final _customerController = TextEditingController();
   bool _isPaid = true;
+
+  @override
+  void initState() {
+    super.initState();
+    final selectedId = widget.selectedProductId;
+    if (selectedId != null &&
+        widget.products.any(
+          (product) => product.id == selectedId && product.stock > 0,
+        )) {
+      _quantities[selectedId] = 1;
+    }
+  }
 
   @override
   void dispose() {
@@ -983,7 +1850,7 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
                         icon: const Icon(Icons.check),
                         label: const Text('Save sale'),
                         style: FilledButton.styleFrom(
-                          backgroundColor: _green,
+                          backgroundColor: _orange,
                           minimumSize: const Size(130, 48),
                         ),
                       ),
@@ -1005,9 +1872,9 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         child: Row(
           children: [
-            const CircleAvatar(
-              backgroundColor: _lightGreen,
-              child: Icon(Icons.shopping_basket_outlined, color: _green),
+            _ProductThumbnail(
+              product: product,
+              fallbackIcon: Icons.shopping_basket_outlined,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1021,6 +1888,11 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
                   Text(
                     '${_peso(product.price)}  •  ${product.stock} available',
                   ),
+                  if (_productMetadata(product).isNotEmpty)
+                    Text(
+                      _productMetadata(product),
+                      style: const TextStyle(color: Colors.black54),
+                    ),
                 ],
               ),
             ),
@@ -1261,7 +2133,9 @@ class CustomerDetailScreen extends StatelessWidget {
                           trailing: Text(
                             '${entry.isPayment ? '−' : '+'}${_peso(entry.amount)}',
                             style: TextStyle(
-                              color: entry.isPayment ? _green : const Color(0xFFB94A32),
+                              color: entry.isPayment
+                                  ? _green
+                                  : const Color(0xFFB94A32),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -1278,7 +2152,7 @@ class CustomerDetailScreen extends StatelessWidget {
             icon: const Icon(Icons.payments_outlined),
             label: const Text('Record payment'),
             style: FilledButton.styleFrom(
-              backgroundColor: _green,
+              backgroundColor: _orange,
               minimumSize: const Size.fromHeight(52),
             ),
           ),

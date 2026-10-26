@@ -11,10 +11,17 @@ sales, and customer utang in one place.
 - Automatic stock deductions when a sale is saved
 - Customer utang balances with payment recording and account activity
 - Daily summary showing paid and credit sales
+- Editable store owner display name from the profile button; no account or
+  password is required
+- Open Food Facts barcode lookup when adding or editing a product, including
+  available product name, brand, package size, and product image
+- Manual product entry remains available when a barcode is not found or the
+  API cannot be reached
 
-The current version uses sample data stored in memory. Changes are lost when the
-app restarts. Open Food Facts lookup and persistent storage are planned follow-up
-work.
+The current version uses sample data stored in memory. Changes, including the
+owner display name, are lost when the app restarts. Product lookup uses the
+public Open Food Facts API and sends the required `TindaHub/1.0` User-Agent; it
+does not require an API key.
 
 ## Project member
 
