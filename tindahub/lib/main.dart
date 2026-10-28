@@ -1247,71 +1247,41 @@ class _SalesOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(22),
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
     decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(28),
-      gradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [_orange, Color(0xFFFFA64D)],
-      ),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x33F38B2D),
-          blurRadius: 20,
-          offset: Offset(0, 10),
-        ),
-      ],
+      color: _lightGreen,
+      borderRadius: BorderRadius.circular(14),
     ),
-    child: Row(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.trending_up, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text(
-                    'TODAY’S SALES',
-                    style: TextStyle(
-                      color: Colors.white,
-                      letterSpacing: 1,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+        const Row(
+          children: [
+            Icon(Icons.trending_up, color: _green, size: 18),
+            SizedBox(width: 8),
+            Text(
+              "TODAY'S SALES",
+              style: TextStyle(
+                color: _green,
+                letterSpacing: 0.6,
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(height: 14),
-              Text(
-                _peso(amount),
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Total value of sales recorded today',
-                style: TextStyle(color: Color(0xFFFFF3E7)),
-              ),
-            ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text(
+          _peso(amount),
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            color: _ink,
+            fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(width: 10),
-        Container(
-          width: 68,
-          height: 68,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: const Icon(
-            Icons.shopping_basket_rounded,
-            color: Colors.white,
-            size: 34,
-          ),
+        const SizedBox(height: 3),
+        const Text(
+          'Total value of sales recorded today',
+          style: TextStyle(color: Color(0xFF65675F)),
         ),
       ],
     ),
@@ -1323,44 +1293,42 @@ class _MetricCard extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
-    required this.tint,
-    required this.onTap,
   });
 
   final IconData icon;
   final String label;
   final String value;
-  final Color tint;
-  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Card(
-    elevation: 0,
-    color: Colors.white,
-    child: InkWell(
-      borderRadius: BorderRadius.circular(22),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              backgroundColor: tint,
-              child: Icon(icon, color: _green),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: _ink,
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: const Color(0xFFE9E6DE)),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(label, style: const TextStyle(color: Colors.black54)),
+              const SizedBox(height: 6),
+              Text(
+                value,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: _ink,
+                ),
               ),
-            ),
-            Text(label, style: const TextStyle(color: Colors.black54)),
-          ],
+            ],
+          ),
         ),
-      ),
+        const SizedBox(width: 8),
+        Icon(icon, color: _green, size: 20),
+      ],
     ),
   );
 }
@@ -2581,8 +2549,6 @@ class DailySummaryScreen extends StatelessWidget {
                 icon: Icons.payments_outlined,
                 label: 'Paid sales',
                 value: _peso(paid),
-                tint: _lightGreen,
-                onTap: () {},
               ),
             ),
             const SizedBox(width: 12),
@@ -2591,8 +2557,6 @@ class DailySummaryScreen extends StatelessWidget {
                 icon: Icons.menu_book_outlined,
                 label: 'Utang sales',
                 value: _peso(credit),
-                tint: const Color(0xFFFFF3DF),
-                onTap: () {},
               ),
             ),
           ],
@@ -2605,8 +2569,6 @@ class DailySummaryScreen extends StatelessWidget {
                 icon: Icons.date_range_outlined,
                 label: 'This week',
                 value: _peso(weekTotal),
-                tint: const Color(0xFFFFEBD8),
-                onTap: () {},
               ),
             ),
             const SizedBox(width: 12),
@@ -2615,8 +2577,6 @@ class DailySummaryScreen extends StatelessWidget {
                 icon: Icons.calendar_month_outlined,
                 label: 'This month',
                 value: _peso(monthTotal),
-                tint: _lightGreen,
-                onTap: () {},
               ),
             ),
           ],
@@ -2732,6 +2692,10 @@ class _WeeklySalesChart extends StatelessWidget {
     return Card(
       elevation: 0,
       color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Color(0xFFE9E6DE)),
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
         child: SizedBox(
