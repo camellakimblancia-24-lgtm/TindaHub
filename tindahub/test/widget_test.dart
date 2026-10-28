@@ -54,6 +54,31 @@ void main() {
     expect(find.text('C'), findsOneWidget);
   });
 
+  testWidgets('shows an add image action in the product form', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const TindaHubApp());
+
+    await tester.tap(find.text('Products'));
+    await tester.pumpAndSettle();
+
+    final addButton = find.byTooltip('Add product');
+    if (addButton.evaluate().isNotEmpty) {
+      await tester.tap(addButton);
+      await tester.pumpAndSettle();
+      expect(find.text('Add product'), findsOneWidget);
+      expect(find.byTooltip('Look up product'), findsOneWidget);
+      expect(find.text('Add image'), findsOneWidget);
+      return;
+    }
+
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+    expect(find.text('Add product'), findsOneWidget);
+    expect(find.byTooltip('Look up product'), findsOneWidget);
+    expect(find.text('Add image'), findsOneWidget);
+  });
+
   testWidgets('records a sale and updates inventory and daily summary', (
     WidgetTester tester,
   ) async {

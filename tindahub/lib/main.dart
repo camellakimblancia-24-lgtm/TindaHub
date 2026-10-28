@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'open_food_facts.dart';
 
@@ -18,6 +21,42 @@ String _productMetadata(StoreProduct product) => [
   if (product.size != null) product.size!,
 ].join(' • ');
 
+Widget _buildProductImage(
+  String? imageSource, {
+  Uint8List? imageBytes,
+  required Widget fallback,
+  double width = 56,
+  double height = 56,
+  BoxFit fit = BoxFit.cover,
+}) {
+  if (imageBytes != null) {
+    return Image.memory(
+      imageBytes,
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) => fallback,
+    );
+  }
+
+  if (imageSource == null || imageSource.trim().isEmpty) {
+    return fallback;
+  }
+
+  final uri = Uri.tryParse(imageSource);
+  if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+    return Image.network(
+      imageSource,
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) => fallback,
+    );
+  }
+
+  return fallback;
+}
+
 class StoreProduct {
   StoreProduct({
     required this.id,
@@ -28,6 +67,7 @@ class StoreProduct {
     this.brand,
     this.size,
     this.imageUrl,
+    this.imageBytes,
   });
 
   final String id;
@@ -38,6 +78,7 @@ class StoreProduct {
   String? brand;
   String? size;
   String? imageUrl;
+  Uint8List? imageBytes;
 }
 
 class LedgerEntry {
@@ -820,23 +861,24 @@ class _BrowseProductCard extends StatelessWidget {
                 children: [
                   Container(
                     color: background,
-                    child: product.imageUrl == null
+                    child: product.imageUrl == null && product.imageBytes == null
                         ? Center(
                             child: Text(
                               _productEmoji(product),
                               style: const TextStyle(fontSize: 62),
                             ),
                           )
-                        : Image.network(
-                            product.imageUrl!,
+                        : _buildProductImage(
+                            product.imageUrl,
+                            width: double.infinity,
+                            height: double.infinity,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Center(
-                                  child: Text(
-                                    _productEmoji(product),
-                                    style: const TextStyle(fontSize: 62),
-                                  ),
-                                ),
+                            fallback: Center(
+                              child: Text(
+                                _productEmoji(product),
+                                style: const TextStyle(fontSize: 62),
+                              ),
+                            ),
                           ),
                   ),
                   Positioned(
@@ -1032,17 +1074,19 @@ class _ProductDetailsSheet extends StatelessWidget {
               width: double.infinity,
               height: 210,
               color: _lightGreen,
-              child: product.imageUrl == null
+              child: product.imageUrl == null && product.imageBytes == null
                   ? Center(
                       child: Text(
                         _productEmoji(product),
                         style: const TextStyle(fontSize: 90),
                       ),
                     )
-                  : Image.network(
-                      product.imageUrl!,
+                  : _buildProductImage(
+                      product.imageUrl,
+                      width: double.infinity,
+                      height: double.infinity,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Center(
+                      fallback: Center(
                         child: Text(
                           _productEmoji(product),
                           style: const TextStyle(fontSize: 90),
@@ -1283,17 +1327,15 @@ class _ProductThumbnail extends StatelessWidget {
       ),
       child: Icon(fallbackIcon, color: _green),
     );
-    final imageUrl = product.imageUrl;
-    if (imageUrl == null) return fallback;
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
-      child: Image.network(
-        imageUrl,
+      child: _buildProductImage(
+        product.imageUrl,
+        imageBytes: product.imageBytes,
         width: 56,
         height: 56,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => fallback,
+        fallback: fallback,
       ),
     );
   }
@@ -1496,6 +1538,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   String? _brand;
   String? _size;
   String? _imageUrl;
+  Uint8List? _pickedImageBytes;
   String? _lookupError;
   bool _isLookingUp = false;
 
@@ -1516,6 +1559,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     _brand = widget.product?.brand;
     _size = widget.product?.size;
     _imageUrl = widget.product?.imageUrl;
+    _pickedImageBytes = widget.product?.imageBytes;
   }
 
   @override
@@ -1526,6 +1570,22 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     _barcodeController.dispose();
     _openFoodFactsService.close();
     super.dispose();
+  }
+
+  Future<void> _pickProductImage() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    if (!mounted || result == null || result.files.isEmpty) return;
+
+    final bytes = result.files.single.bytes;
+    if (bytes == null) return;
+
+    setState(() {
+      _pickedImageBytes = bytes;
+      _imageUrl = null;
+    });
   }
 
   Future<void> _lookupProduct() async {
@@ -1541,6 +1601,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
       _brand = null;
       _size = null;
       _imageUrl = null;
+      _pickedImageBytes = null;
     });
     try {
       final product = await _openFoodFactsService.lookupByBarcode(barcode);
@@ -1558,6 +1619,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
         _brand = product.brand;
         _size = product.size;
         _imageUrl = product.imageUrl;
+        _pickedImageBytes = null;
       });
     } on Exception catch (error) {
       if (!mounted) return;
@@ -1569,38 +1631,37 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.product == null ? 'Add product' : 'Edit product'),
+    title: Row(
+      children: [
+        Expanded(
+          child: Text(widget.product == null ? 'Add product' : 'Edit product'),
+        ),
+        IconButton.filled(
+          tooltip: 'Look up product',
+          onPressed: _isLookingUp ? null : _lookupProduct,
+          icon: _isLookingUp
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.search),
+        ),
+      ],
+    ),
     scrollable: true,
     content: Form(
       key: _formKey,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _barcodeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Barcode',
-                    hintText: 'Scan or enter barcode',
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                tooltip: 'Look up product',
-                onPressed: _isLookingUp ? null : _lookupProduct,
-                icon: _isLookingUp
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.search),
-              ),
-            ],
+          TextFormField(
+            controller: _barcodeController,
+            decoration: const InputDecoration(
+              labelText: 'Barcode',
+              hintText: 'Scan or enter barcode',
+            ),
+            keyboardType: TextInputType.number,
           ),
           if (_lookupError != null) ...[
             const SizedBox(height: 4),
@@ -1612,20 +1673,20 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
               ),
             ),
           ],
-          if (_brand != null || _size != null || _imageUrl != null) ...[
+          if (_brand != null || _size != null || _imageUrl != null || _pickedImageBytes != null) ...[
             const SizedBox(height: 12),
             Row(
               children: [
-                if (_imageUrl != null)
+                if (_imageUrl != null || _pickedImageBytes != null)
                   Padding(
                     padding: const EdgeInsets.only(right: 12),
-                    child: Image.network(
-                      _imageUrl!,
+                    child: _buildProductImage(
+                      _imageUrl,
+                      imageBytes: _pickedImageBytes,
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.image_not_supported_outlined),
+                      fallback: const Icon(Icons.image_not_supported_outlined),
                     ),
                   ),
                 Expanded(
@@ -1663,6 +1724,14 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                   : null;
             },
           ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _pickProductImage,
+              icon: const Icon(Icons.add_photo_alternate_outlined),
+              label: const Text('Add image'),
+            ),
+          ),
         ],
       ),
     ),
@@ -1689,6 +1758,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
               brand: _brand,
               size: _size,
               imageUrl: _imageUrl,
+              imageBytes: _pickedImageBytes,
             ),
           );
         },
