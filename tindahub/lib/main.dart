@@ -118,18 +118,32 @@ class SaleLine {
   double get total => product.price * quantity;
 }
 
+class ProductSaleItem {
+  const ProductSaleItem({
+    required this.productId,
+    required this.productName,
+    required this.quantity,
+  });
+
+  final String productId;
+  final String productName;
+  final int quantity;
+}
+
 class SaleRecord {
   const SaleRecord({
     required this.total,
     required this.date,
     required this.isPaid,
     this.customerName,
+    this.items = const [],
   });
 
   final double total;
   final DateTime date;
   final bool isPaid;
   final String? customerName;
+  final List<ProductSaleItem> items;
 }
 
 class TindaHubApp extends StatefulWidget {
@@ -196,6 +210,15 @@ class _TindaHubAppState extends State<TindaHubApp> {
           date: DateTime.now(),
           isPaid: isPaid,
           customerName: customerName,
+          items: List.unmodifiable(
+            lines.map(
+              (line) => ProductSaleItem(
+                productId: line.product.id,
+                productName: line.product.name,
+                quantity: line.quantity,
+              ),
+            ),
+          ),
         ),
       );
       if (!isPaid && customerName != null) {
@@ -264,7 +287,8 @@ class _TindaHubAppState extends State<TindaHubApp> {
                 ..barcode = product.barcode
                 ..brand = product.brand
                 ..size = product.size
-                ..imageUrl = product.imageUrl;
+                ..imageUrl = product.imageUrl
+                ..imageBytes = product.imageBytes;
             }
           });
         },
@@ -518,6 +542,36 @@ bool _sameDay(DateTime first, DateTime second) =>
     first.year == second.year &&
     first.month == second.month &&
     first.day == second.day;
+
+DateTime? _oldestUnpaidCreditDate(StoreCustomer customer) {
+  if (customer.balance <= 0) return null;
+
+  final entries = [...customer.history]
+    ..sort((first, second) => first.date.compareTo(second.date));
+  final unpaidDates = <DateTime>[];
+  final unpaidAmounts = <double>[];
+
+  for (final entry in entries) {
+    if (!entry.isPayment) {
+      unpaidDates.add(entry.date);
+      unpaidAmounts.add(entry.amount);
+      continue;
+    }
+
+    var paymentRemaining = entry.amount;
+    while (paymentRemaining > 0 && unpaidAmounts.isNotEmpty) {
+      if (paymentRemaining >= unpaidAmounts.first) {
+        paymentRemaining -= unpaidAmounts.removeAt(0);
+        unpaidDates.removeAt(0);
+      } else {
+        unpaidAmounts[0] -= paymentRemaining;
+        paymentRemaining = 0;
+      }
+    }
+  }
+
+  return unpaidDates.isEmpty ? null : unpaidDates.first;
+}
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
@@ -861,7 +915,8 @@ class _BrowseProductCard extends StatelessWidget {
                 children: [
                   Container(
                     color: background,
-                    child: product.imageUrl == null && product.imageBytes == null
+                    child:
+                        product.imageUrl == null && product.imageBytes == null
                         ? Center(
                             child: Text(
                               _productEmoji(product),
@@ -1673,7 +1728,10 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
               ),
             ),
           ],
-          if (_brand != null || _size != null || _imageUrl != null || _pickedImageBytes != null) ...[
+          if (_brand != null ||
+              _size != null ||
+              _imageUrl != null ||
+              _pickedImageBytes != null) ...[
             const SizedBox(height: 12),
             Row(
               children: [
@@ -2012,7 +2070,7 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
   }
 }
 
-class UtangLedgerScreen extends StatelessWidget {
+class UtangLedgerScreen extends StatefulWidget {
   const UtangLedgerScreen({
     required this.customers,
     required this.onPayment,
@@ -2023,11 +2081,24 @@ class UtangLedgerScreen extends StatelessWidget {
   final void Function(StoreCustomer, double) onPayment;
 
   @override
+  State<UtangLedgerScreen> createState() => _UtangLedgerScreenState();
+}
+
+class _UtangLedgerScreenState extends State<UtangLedgerScreen> {
+  String _query = '';
+
+  @override
   Widget build(BuildContext context) {
-    final total = customers.fold<double>(
+    final total = widget.customers.fold<double>(
       0,
       (sum, customer) => sum + customer.balance,
     );
+    final filteredCustomers = widget.customers
+        .where(
+          (customer) =>
+              customer.name.toLowerCase().contains(_query.toLowerCase()),
+        )
+        .toList();
     return Column(
       children: [
         Container(
@@ -2054,21 +2125,42 @@ class UtangLedgerScreen extends StatelessWidget {
                 ),
               ),
               Text(
-                '${customers.where((customer) => customer.balance > 0).length} customers with a balance',
+                '${widget.customers.where((customer) => customer.balance > 0).length} customers with a balance',
               ),
             ],
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: TextField(
+            decoration: const InputDecoration(
+              hintText: 'Search customers',
+              prefixIcon: Icon(Icons.search),
+            ),
+            onChanged: (value) => setState(() => _query = value.trim()),
+          ),
+        ),
         Expanded(
-          child: customers.isEmpty
-              ? const Center(child: Text('No customer balances yet.'))
+          child: filteredCustomers.isEmpty
+              ? Center(
+                  child: Text(
+                    widget.customers.isEmpty
+                        ? 'No customer balances yet.'
+                        : 'No customers found.',
+                  ),
+                )
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemCount: customers.length,
+                  itemCount: filteredCustomers.length,
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 8),
                   itemBuilder: (context, index) {
-                    final customer = customers[index];
+                    final customer = filteredCustomers[index];
+                    final oldestCredit = _oldestUnpaidCreditDate(customer);
+                    final isOverdue =
+                        customer.balance > 0 &&
+                        oldestCredit != null &&
+                        DateTime.now().difference(oldestCredit).inDays >= 30;
                     return Card(
                       elevation: 0,
                       color: Colors.white,
@@ -2085,7 +2177,19 @@ class UtangLedgerScreen extends StatelessWidget {
                           customer.name,
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        subtitle: const Text('Outstanding balance'),
+                        subtitle: Text(
+                          isOverdue
+                              ? 'Unpaid for 30+ days'
+                              : 'Outstanding balance',
+                          style: TextStyle(
+                            color: isOverdue
+                                ? const Color(0xFFB94A32)
+                                : Colors.black54,
+                            fontWeight: isOverdue
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -2106,7 +2210,7 @@ class UtangLedgerScreen extends StatelessWidget {
                           MaterialPageRoute(
                             builder: (context) => CustomerDetailScreen(
                               customer: customer,
-                              onPayment: onPayment,
+                              onPayment: widget.onPayment,
                             ),
                           ),
                         ),
@@ -2284,14 +2388,49 @@ class DailySummaryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final today = sales
-        .where((sale) => _sameDay(sale.date, DateTime.now()))
-        .toList();
+    final now = DateTime.now();
+    final startOfWeek = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(Duration(days: now.weekday - 1));
+    final startOfNextWeek = startOfWeek.add(const Duration(days: 7));
+    final startOfMonth = DateTime(now.year, now.month);
+    final startOfNextMonth = DateTime(now.year, now.month + 1);
+    final today = sales.where((sale) => _sameDay(sale.date, now)).toList();
     final total = today.fold<double>(0, (sum, sale) => sum + sale.total);
     final paid = today
         .where((sale) => sale.isPaid)
         .fold<double>(0, (sum, sale) => sum + sale.total);
     final credit = total - paid;
+    final weekTotal = sales
+        .where(
+          (sale) =>
+              !sale.date.isBefore(startOfWeek) &&
+              sale.date.isBefore(startOfNextWeek),
+        )
+        .fold<double>(0, (sum, sale) => sum + sale.total);
+    final monthTotal = sales
+        .where(
+          (sale) =>
+              !sale.date.isBefore(startOfMonth) &&
+              sale.date.isBefore(startOfNextMonth),
+        )
+        .fold<double>(0, (sum, sale) => sum + sale.total);
+    final soldQuantities = <String, int>{};
+    final productNames = <String, String>{};
+    for (final sale in sales) {
+      for (final item in sale.items) {
+        soldQuantities.update(
+          item.productId,
+          (quantity) => quantity + item.quantity,
+          ifAbsent: () => item.quantity,
+        );
+        productNames[item.productId] = item.productName;
+      }
+    }
+    final bestSellers = soldQuantities.entries.toList()
+      ..sort((first, second) => second.value.compareTo(first.value));
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -2327,6 +2466,69 @@ class DailySummaryScreen extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _MetricCard(
+                icon: Icons.date_range_outlined,
+                label: 'This week',
+                value: _peso(weekTotal),
+                tint: const Color(0xFFFFEBD8),
+                onTap: () {},
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _MetricCard(
+                icon: Icons.calendar_month_outlined,
+                label: 'This month',
+                value: _peso(monthTotal),
+                tint: _lightGreen,
+                onTap: () {},
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'Sales this week',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        _WeeklySalesChart(sales: sales, today: now),
+        const SizedBox(height: 24),
+        Text(
+          'Best-selling products',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        if (bestSellers.isEmpty)
+          const _EmptyCard(message: 'No product sales recorded yet.')
+        else
+          ...bestSellers
+              .take(5)
+              .map(
+                (entry) => Card(
+                  elevation: 0,
+                  color: Colors.white,
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      backgroundColor: _lightGreen,
+                      child: Icon(Icons.trending_up, color: _green),
+                    ),
+                    title: Text(productNames[entry.key]!),
+                    trailing: Text(
+                      '${entry.value} sold',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ),
         const SizedBox(height: 24),
         Text(
           'Today’s transactions',
@@ -2368,6 +2570,81 @@ class DailySummaryScreen extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _WeeklySalesChart extends StatelessWidget {
+  const _WeeklySalesChart({required this.sales, required this.today});
+
+  final List<SaleRecord> sales;
+  final DateTime today;
+
+  @override
+  Widget build(BuildContext context) {
+    final days = List.generate(
+      7,
+      (index) => DateTime(today.year, today.month, today.day - 6 + index),
+    );
+    final totals = days
+        .map(
+          (day) => sales
+              .where((sale) => _sameDay(sale.date, day))
+              .fold<double>(0, (sum, sale) => sum + sale.total),
+        )
+        .toList();
+    final maxTotal = totals.fold<double>(
+      0,
+      (max, total) => total > max ? total : max,
+    );
+
+    return Card(
+      elevation: 0,
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
+        child: SizedBox(
+          height: 100,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(days.length, (index) {
+              final total = totals[index];
+              final barHeight = maxTotal == 0 ? 4.0 : 56 * total / maxTotal;
+              return Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Container(
+                      width: 18,
+                      height: barHeight.clamp(4, 56),
+                      decoration: BoxDecoration(
+                        color: total == 0 ? _lightGreen : _orange,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      const [
+                        'M',
+                        'T',
+                        'W',
+                        'T',
+                        'F',
+                        'S',
+                        'S',
+                      ][days[index].weekday - 1],
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF77796F),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
     );
   }
 }

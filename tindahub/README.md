@@ -10,7 +10,9 @@ sales, and customer utang in one place.
 - Sale recording for paid purchases or customer credit
 - Automatic stock deductions when a sale is saved
 - Customer utang balances with payment recording and account activity
-- Daily summary showing paid and credit sales
+- Customer search and 30-day overdue utang reminders
+- Daily, weekly, and monthly sales summaries with a seven-day trend chart
+- Best-selling product counts based on recorded sale quantities
 - Editable store owner display name from the profile button; no account or
   password is required
 - Open Food Facts barcode lookup when adding or editing a product, including

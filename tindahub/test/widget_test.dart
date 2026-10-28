@@ -79,6 +79,98 @@ void main() {
     expect(find.text('Add image'), findsOneWidget);
   });
 
+  testWidgets('searches customers and marks long-standing utang', (
+    WidgetTester tester,
+  ) async {
+    final oldCustomer = StoreCustomer(
+      id: 'old',
+      name: 'Aling Nena',
+      balance: 125,
+      history: [
+        LedgerEntry(
+          description: 'Unpaid purchase',
+          amount: 125,
+          date: DateTime.now().subtract(const Duration(days: 31)),
+          isPayment: false,
+        ),
+      ],
+    );
+    final recentCustomer = StoreCustomer(
+      id: 'recent',
+      name: 'Mang Jose',
+      balance: 60,
+      history: [
+        LedgerEntry(
+          description: 'Recent purchase',
+          amount: 60,
+          date: DateTime.now().subtract(const Duration(days: 2)),
+          isPayment: false,
+        ),
+      ],
+    );
+    final recentlyOwedCustomer = StoreCustomer(
+      id: 'recently-owed',
+      name: 'Aling Rosa',
+      balance: 60,
+      history: [
+        LedgerEntry(
+          description: 'Old purchase',
+          amount: 100,
+          date: DateTime.now().subtract(const Duration(days: 45)),
+          isPayment: false,
+        ),
+        LedgerEntry(
+          description: 'Old balance paid',
+          amount: 100,
+          date: DateTime.now().subtract(const Duration(days: 5)),
+          isPayment: true,
+        ),
+        LedgerEntry(
+          description: 'Recent purchase',
+          amount: 60,
+          date: DateTime.now().subtract(const Duration(days: 1)),
+          isPayment: false,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: UtangLedgerScreen(
+            customers: [oldCustomer, recentCustomer, recentlyOwedCustomer],
+            onPayment: (customer, amount) {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Unpaid for 30+ days'), findsOneWidget);
+    expect(find.text('Outstanding balance'), findsNWidgets(2));
+    await tester.enterText(find.byType(TextField), 'nena');
+    await tester.pumpAndSettle();
+    expect(find.text('Aling Nena'), findsOneWidget);
+    expect(find.text('Mang Jose'), findsNothing);
+  });
+
+  testWidgets('shows weekly, monthly, and best-selling summaries', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const TindaHubApp());
+
+    await tester.tap(find.text('Summary'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('This week'), findsOneWidget);
+    expect(find.text('This month'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Best-selling products'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Best-selling products'), findsOneWidget);
+  });
+
   testWidgets('records a sale and updates inventory and daily summary', (
     WidgetTester tester,
   ) async {
@@ -98,6 +190,13 @@ void main() {
 
     await tester.tap(find.text('Summary'));
     await tester.pumpAndSettle();
-    expect(find.text('₱908.00'), findsNWidgets(2));
+    expect(find.text('₱908.00'), findsNWidgets(4));
+    await tester.scrollUntilVisible(
+      find.text('Rice (1 kg)'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Rice (1 kg)'), findsOneWidget);
+    expect(find.text('1 sold'), findsOneWidget);
   });
 }
