@@ -87,12 +87,28 @@ class LedgerEntry {
     required this.amount,
     required this.date,
     required this.isPayment,
+    this.cashReceived,
+    this.changeGiven,
   });
 
   final String description;
   final double amount;
   final DateTime date;
   final bool isPayment;
+  final double? cashReceived;
+  final double? changeGiven;
+}
+
+class PaymentRecord {
+  const PaymentRecord({
+    required this.cashReceived,
+    required this.amountApplied,
+    required this.changeGiven,
+  });
+
+  final double cashReceived;
+  final double amountApplied;
+  final double changeGiven;
 }
 
 class StoreCustomer {
@@ -296,18 +312,20 @@ class _TindaHubAppState extends State<TindaHubApp> {
       ),
       UtangLedgerScreen(
         customers: _customers,
-        onPayment: (customer, amount) {
+        onPayment: (customer, payment) {
           setState(() {
-            customer.balance = (customer.balance - amount).clamp(
+            customer.balance = (customer.balance - payment.amountApplied).clamp(
               0,
               double.infinity,
             );
             customer.history.add(
               LedgerEntry(
                 description: 'Payment received',
-                amount: amount,
+                amount: payment.amountApplied,
                 date: DateTime.now(),
                 isPayment: true,
+                cashReceived: payment.cashReceived,
+                changeGiven: payment.changeGiven,
               ),
             );
           });
@@ -334,7 +352,7 @@ class _TindaHubAppState extends State<TindaHubApp> {
           margin: EdgeInsets.zero,
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: _cream,
+          backgroundColor: Color.fromARGB(255, 185, 237, 139),
           foregroundColor: _ink,
           centerTitle: false,
           elevation: 0,
@@ -415,15 +433,6 @@ class _TindaHubAppState extends State<TindaHubApp> {
           ],
         ),
         body: IndexedStack(index: _selectedTab, children: pages),
-        floatingActionButton: _selectedTab == 0
-            ? FloatingActionButton.extended(
-                onPressed: _openSale,
-                backgroundColor: _orange,
-                foregroundColor: Colors.white,
-                icon: const Icon(Icons.add_shopping_cart),
-                label: const Text('Add Sale'),
-              )
-            : null,
         bottomNavigationBar: NavigationBar(
           selectedIndex: _selectedTab,
           onDestinationSelected: (index) =>
@@ -460,6 +469,7 @@ class _TindaHubAppState extends State<TindaHubApp> {
       MaterialPageRoute(
         builder: (context) => AddSaleScreen(
           products: _products,
+          customers: _customers,
           onSave: _saveSale,
           selectedProductId: selectedProductId,
         ),
@@ -663,23 +673,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
         const SizedBox(height: 20),
-        Text(
-          'Everything your shop needs,',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            color: _ink,
-            height: 1.15,
-          ),
-        ),
-        Text(
-          'all in one little hub.',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            color: _green,
-            height: 1.15,
-          ),
-        ),
-        const SizedBox(height: 18),
         Row(
           children: [
             Expanded(
@@ -709,33 +702,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
         const SizedBox(height: 18),
-        SizedBox(
-          height: 42,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: _categories.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 8),
-            itemBuilder: (context, index) {
-              final category = _categories[index];
-              final selected = category == _selectedCategory;
-              return ChoiceChip(
-                label: Text(category),
-                selected: selected,
-                showCheckmark: false,
-                onSelected: (_) => setState(() => _selectedCategory = category),
-                selectedColor: _orange,
-                backgroundColor: Colors.white,
-                side: BorderSide.none,
-                labelStyle: TextStyle(
-                  color: selected ? Colors.white : _ink,
-                  fontWeight: FontWeight.w600,
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 42,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _categories.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final category = _categories[index];
+                    final selected = category == _selectedCategory;
+                    return ChoiceChip(
+                      label: Text(category),
+                      selected: selected,
+                      showCheckmark: false,
+                      onSelected: (_) =>
+                          setState(() => _selectedCategory = category),
+                      selectedColor: _orange,
+                      backgroundColor: Colors.white,
+                      side: BorderSide.none,
+                      labelStyle: TextStyle(
+                        color: selected ? Colors.white : _ink,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    );
+                  },
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-              );
-            },
-          ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: widget.onAddSale,
+              icon: const Icon(Icons.add_shopping_cart),
+              label: const Text('Add Sale'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 42),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 22),
         Row(
@@ -1829,12 +1840,14 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
 class AddSaleScreen extends StatefulWidget {
   const AddSaleScreen({
     required this.products,
+    required this.customers,
     required this.onSave,
     this.selectedProductId,
     super.key,
   });
 
   final List<StoreProduct> products;
+  final List<StoreCustomer> customers;
   final void Function(List<SaleLine>, bool, String?) onSave;
   final String? selectedProductId;
 
@@ -1845,6 +1858,7 @@ class AddSaleScreen extends StatefulWidget {
 class _AddSaleScreenState extends State<AddSaleScreen> {
   final _quantities = <String, int>{};
   final _customerController = TextEditingController();
+  final _customerFocusNode = FocusNode();
   bool _isPaid = true;
 
   @override
@@ -1862,6 +1876,7 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
   @override
   void dispose() {
     _customerController.dispose();
+    _customerFocusNode.dispose();
     super.dispose();
   }
 
@@ -1925,12 +1940,55 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
                     ),
                     if (!_isPaid) ...[
                       const SizedBox(height: 12),
-                      TextField(
-                        controller: _customerController,
-                        decoration: const InputDecoration(
-                          labelText: 'Customer name',
-                          prefixIcon: Icon(Icons.person_outline),
-                          border: OutlineInputBorder(),
+                      RawAutocomplete<StoreCustomer>(
+                        textEditingController: _customerController,
+                        focusNode: _customerFocusNode,
+                        displayStringForOption: (customer) => customer.name,
+                        optionsBuilder: (value) {
+                          final query = value.text.trim().toLowerCase();
+                          return widget.customers.where(
+                            (customer) =>
+                                customer.name.toLowerCase().contains(query),
+                          );
+                        },
+                        fieldViewBuilder:
+                            (context, controller, focusNode, onSubmitted) =>
+                                TextField(
+                                  controller: controller,
+                                  focusNode: focusNode,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Customer name',
+                                    prefixIcon: Icon(Icons.person_outline),
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  onSubmitted: (_) => onSubmitted(),
+                                ),
+                        optionsViewBuilder: (context, onSelected, options) => Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 4,
+                            borderRadius: BorderRadius.circular(12),
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxHeight: 220),
+                              child: ListView.builder(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                itemCount: options.length,
+                                itemBuilder: (context, index) {
+                                  final customer = options.elementAt(index);
+                                  return ListTile(
+                                    title: Text(customer.name),
+                                    subtitle: customer.balance > 0
+                                        ? Text(
+                                            'Balance: ${_peso(customer.balance)}',
+                                          )
+                                        : null,
+                                    onTap: () => onSelected(customer),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -2078,7 +2136,7 @@ class UtangLedgerScreen extends StatefulWidget {
   });
 
   final List<StoreCustomer> customers;
-  final void Function(StoreCustomer, double) onPayment;
+  final void Function(StoreCustomer, PaymentRecord) onPayment;
 
   @override
   State<UtangLedgerScreen> createState() => _UtangLedgerScreenState();
@@ -2232,7 +2290,7 @@ class CustomerDetailScreen extends StatelessWidget {
   });
 
   final StoreCustomer customer;
-  final void Function(StoreCustomer, double) onPayment;
+  final void Function(StoreCustomer, PaymentRecord) onPayment;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -2300,9 +2358,14 @@ class CustomerDetailScreen extends StatelessWidget {
                           ),
                           title: Text(entry.description),
                           subtitle: Text(
-                            '${date.day}/${date.month}/${date.year} · '
-                            '${date.hour.toString().padLeft(2, '0')}:'
-                            '${date.minute.toString().padLeft(2, '0')}',
+                            [
+                              '${date.day}/${date.month}/${date.year} · '
+                                  '${date.hour.toString().padLeft(2, '0')}:'
+                                  '${date.minute.toString().padLeft(2, '0')}',
+                              if (entry.cashReceived != null)
+                                'Cash ${_peso(entry.cashReceived!)} · '
+                                    'Change ${_peso(entry.changeGiven ?? 0)}',
+                            ].join(' · '),
                           ),
                           trailing: Text(
                             '${entry.isPayment ? '−' : '+'}${_peso(entry.amount)}',
@@ -2336,48 +2399,88 @@ class CustomerDetailScreen extends StatelessWidget {
   );
 
   Future<void> _recordPayment(BuildContext context) async {
-    final controller = TextEditingController();
-    final amount = await showDialog<double>(
+    final payment = await showDialog<PaymentRecord>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Record payment'),
-        content: TextField(
-          controller: controller,
+      builder: (context) => _RecordPaymentDialog(balance: customer.balance),
+    );
+    if (payment != null) onPayment(customer, payment);
+  }
+}
+
+class _RecordPaymentDialog extends StatefulWidget {
+  const _RecordPaymentDialog({required this.balance});
+
+  final double balance;
+
+  @override
+  State<_RecordPaymentDialog> createState() => _RecordPaymentDialogState();
+}
+
+class _RecordPaymentDialogState extends State<_RecordPaymentDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Record payment'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _controller,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
-            labelText: 'Amount received',
+            labelText: 'Cash received',
             prefixText: '₱ ',
-            helperText: 'Balance: ${_peso(customer.balance)}',
+            helperText: 'Balance: ${_peso(widget.balance)}',
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final value = double.tryParse(controller.text);
-              if (value == null || value <= 0 || value > customer.balance) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Enter an amount up to ${_peso(customer.balance)}.',
-                    ),
-                  ),
-                );
-                return;
-              }
-              Navigator.pop(context, value);
-            },
-            child: const Text('Save payment'),
-          ),
-        ],
+        const SizedBox(height: 8),
+        Text('Change due: ${_peso(_changeDue)}'),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: _save, child: const Text('Save payment')),
+    ],
+  );
+
+  double get _changeDue {
+    final cashReceived = double.tryParse(_controller.text) ?? 0;
+    return cashReceived > widget.balance ? cashReceived - widget.balance : 0;
+  }
+
+  void _save() {
+    final cashReceived = double.tryParse(_controller.text);
+    if (cashReceived == null || cashReceived <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a cash amount greater than 0.')),
+      );
+      return;
+    }
+
+    final amountApplied = cashReceived > widget.balance
+        ? widget.balance
+        : cashReceived;
+    Navigator.pop(
+      context,
+      PaymentRecord(
+        cashReceived: cashReceived,
+        amountApplied: amountApplied,
+        changeGiven: cashReceived - amountApplied,
       ),
     );
-    controller.dispose();
-    if (amount != null) onPayment(customer, amount);
   }
 }
 
