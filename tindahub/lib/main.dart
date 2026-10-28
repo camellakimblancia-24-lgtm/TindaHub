@@ -27,7 +27,7 @@ Widget _buildProductImage(
   required Widget fallback,
   double width = 56,
   double height = 56,
-  BoxFit fit = BoxFit.cover,
+  BoxFit fit = BoxFit.contain,
 }) {
   if (imageBytes != null) {
     return Image.memory(
@@ -87,12 +87,28 @@ class LedgerEntry {
     required this.amount,
     required this.date,
     required this.isPayment,
+    this.cashReceived,
+    this.changeGiven,
   });
 
   final String description;
   final double amount;
   final DateTime date;
   final bool isPayment;
+  final double? cashReceived;
+  final double? changeGiven;
+}
+
+class PaymentRecord {
+  const PaymentRecord({
+    required this.cashReceived,
+    required this.amountApplied,
+    required this.changeGiven,
+  });
+
+  final double cashReceived;
+  final double amountApplied;
+  final double changeGiven;
 }
 
 class StoreCustomer {
@@ -156,10 +172,38 @@ class TindaHubApp extends StatefulWidget {
 class _TindaHubAppState extends State<TindaHubApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
   final _products = <StoreProduct>[
-    StoreProduct(id: '1', name: 'Rice (1 kg)', price: 58, stock: 12),
-    StoreProduct(id: '2', name: 'Instant noodles', price: 15, stock: 4),
-    StoreProduct(id: '3', name: 'Canned sardines', price: 27, stock: 8),
-    StoreProduct(id: '4', name: 'Bottled water', price: 20, stock: 2),
+    StoreProduct(
+      id: '1',
+      name: 'Rice (1 kg)',
+      price: 58,
+      stock: 12,
+      imageUrl:
+          'https://images.openfoodfacts.org/images/products/324/883/296/7611/front_fr.140.400.jpg',
+    ),
+    StoreProduct(
+      id: '2',
+      name: 'Instant noodles',
+      price: 15,
+      stock: 4,
+      imageUrl:
+          'https://images.openfoodfacts.org/images/products/880/107/311/6467/front_de.166.400.jpg',
+    ),
+    StoreProduct(
+      id: '3',
+      name: 'Canned sardines',
+      price: 27,
+      stock: 8,
+      imageUrl:
+          'https://images.openfoodfacts.org/images/products/500/017/105/3015/front_en.10.400.jpg',
+    ),
+    StoreProduct(
+      id: '4',
+      name: 'Bottled water',
+      price: 20,
+      stock: 2,
+      imageUrl:
+          'https://images.openfoodfacts.org/images/products/002/259/200/7014/front_en.37.400.jpg',
+    ),
   ];
   final _customers = <StoreCustomer>[
     StoreCustomer(
@@ -296,18 +340,20 @@ class _TindaHubAppState extends State<TindaHubApp> {
       ),
       UtangLedgerScreen(
         customers: _customers,
-        onPayment: (customer, amount) {
+        onPayment: (customer, payment) {
           setState(() {
-            customer.balance = (customer.balance - amount).clamp(
+            customer.balance = (customer.balance - payment.amountApplied).clamp(
               0,
               double.infinity,
             );
             customer.history.add(
               LedgerEntry(
                 description: 'Payment received',
-                amount: amount,
+                amount: payment.amountApplied,
                 date: DateTime.now(),
                 isPayment: true,
+                cashReceived: payment.cashReceived,
+                changeGiven: payment.changeGiven,
               ),
             );
           });
@@ -334,7 +380,7 @@ class _TindaHubAppState extends State<TindaHubApp> {
           margin: EdgeInsets.zero,
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: _cream,
+          backgroundColor: Color.fromARGB(255, 185, 237, 139),
           foregroundColor: _ink,
           centerTitle: false,
           elevation: 0,
@@ -415,15 +461,6 @@ class _TindaHubAppState extends State<TindaHubApp> {
           ],
         ),
         body: IndexedStack(index: _selectedTab, children: pages),
-        floatingActionButton: _selectedTab == 0
-            ? FloatingActionButton.extended(
-                onPressed: _openSale,
-                backgroundColor: _orange,
-                foregroundColor: Colors.white,
-                icon: const Icon(Icons.add_shopping_cart),
-                label: const Text('Add Sale'),
-              )
-            : null,
         bottomNavigationBar: NavigationBar(
           selectedIndex: _selectedTab,
           onDestinationSelected: (index) =>
@@ -460,6 +497,7 @@ class _TindaHubAppState extends State<TindaHubApp> {
       MaterialPageRoute(
         builder: (context) => AddSaleScreen(
           products: _products,
+          customers: _customers,
           onSave: _saveSale,
           selectedProductId: selectedProductId,
         ),
@@ -663,23 +701,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
         const SizedBox(height: 20),
-        Text(
-          'Everything your shop needs,',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            color: _ink,
-            height: 1.15,
-          ),
-        ),
-        Text(
-          'all in one little hub.',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            color: _green,
-            height: 1.15,
-          ),
-        ),
-        const SizedBox(height: 18),
         Row(
           children: [
             Expanded(
@@ -709,33 +730,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
         const SizedBox(height: 18),
-        SizedBox(
-          height: 42,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: _categories.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 8),
-            itemBuilder: (context, index) {
-              final category = _categories[index];
-              final selected = category == _selectedCategory;
-              return ChoiceChip(
-                label: Text(category),
-                selected: selected,
-                showCheckmark: false,
-                onSelected: (_) => setState(() => _selectedCategory = category),
-                selectedColor: _orange,
-                backgroundColor: Colors.white,
-                side: BorderSide.none,
-                labelStyle: TextStyle(
-                  color: selected ? Colors.white : _ink,
-                  fontWeight: FontWeight.w600,
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 42,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _categories.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final category = _categories[index];
+                    final selected = category == _selectedCategory;
+                    return ChoiceChip(
+                      label: Text(category),
+                      selected: selected,
+                      showCheckmark: false,
+                      onSelected: (_) =>
+                          setState(() => _selectedCategory = category),
+                      selectedColor: _orange,
+                      backgroundColor: Colors.white,
+                      side: BorderSide.none,
+                      labelStyle: TextStyle(
+                        color: selected ? Colors.white : _ink,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    );
+                  },
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-              );
-            },
-          ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: widget.onAddSale,
+              icon: const Icon(Icons.add_shopping_cart),
+              label: const Text('Add Sale'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 42),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 22),
         Row(
@@ -925,9 +964,10 @@ class _BrowseProductCard extends StatelessWidget {
                           )
                         : _buildProductImage(
                             product.imageUrl,
+                            imageBytes: product.imageBytes,
                             width: double.infinity,
                             height: double.infinity,
-                            fit: BoxFit.cover,
+                            fit: BoxFit.contain,
                             fallback: Center(
                               child: Text(
                                 _productEmoji(product),
@@ -1138,9 +1178,10 @@ class _ProductDetailsSheet extends StatelessWidget {
                     )
                   : _buildProductImage(
                       product.imageUrl,
+                      imageBytes: product.imageBytes,
                       width: double.infinity,
                       height: double.infinity,
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain,
                       fallback: Center(
                         child: Text(
                           _productEmoji(product),
@@ -1208,71 +1249,41 @@ class _SalesOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(22),
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
     decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(28),
-      gradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [_orange, Color(0xFFFFA64D)],
-      ),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x33F38B2D),
-          blurRadius: 20,
-          offset: Offset(0, 10),
-        ),
-      ],
+      color: _lightGreen,
+      borderRadius: BorderRadius.circular(14),
     ),
-    child: Row(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.trending_up, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text(
-                    'TODAY’S SALES',
-                    style: TextStyle(
-                      color: Colors.white,
-                      letterSpacing: 1,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+        const Row(
+          children: [
+            Icon(Icons.trending_up, color: _green, size: 18),
+            SizedBox(width: 8),
+            Text(
+              "TODAY'S SALES",
+              style: TextStyle(
+                color: _green,
+                letterSpacing: 0.6,
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(height: 14),
-              Text(
-                _peso(amount),
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Total value of sales recorded today',
-                style: TextStyle(color: Color(0xFFFFF3E7)),
-              ),
-            ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text(
+          _peso(amount),
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            color: _ink,
+            fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(width: 10),
-        Container(
-          width: 68,
-          height: 68,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: const Icon(
-            Icons.shopping_basket_rounded,
-            color: Colors.white,
-            size: 34,
-          ),
+        const SizedBox(height: 3),
+        const Text(
+          'Total value of sales recorded today',
+          style: TextStyle(color: Color(0xFF65675F)),
         ),
       ],
     ),
@@ -1284,44 +1295,42 @@ class _MetricCard extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
-    required this.tint,
-    required this.onTap,
   });
 
   final IconData icon;
   final String label;
   final String value;
-  final Color tint;
-  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Card(
-    elevation: 0,
-    color: Colors.white,
-    child: InkWell(
-      borderRadius: BorderRadius.circular(22),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              backgroundColor: tint,
-              child: Icon(icon, color: _green),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: _ink,
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: const Color(0xFFE9E6DE)),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(label, style: const TextStyle(color: Colors.black54)),
+              const SizedBox(height: 6),
+              Text(
+                value,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: _ink,
+                ),
               ),
-            ),
-            Text(label, style: const TextStyle(color: Colors.black54)),
-          ],
+            ],
+          ),
         ),
-      ),
+        const SizedBox(width: 8),
+        Icon(icon, color: _green, size: 20),
+      ],
     ),
   );
 }
@@ -1389,7 +1398,7 @@ class _ProductThumbnail extends StatelessWidget {
         imageBytes: product.imageBytes,
         width: 56,
         height: 56,
-        fit: BoxFit.cover,
+        fit: BoxFit.contain,
         fallback: fallback,
       ),
     );
@@ -1743,7 +1752,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                       imageBytes: _pickedImageBytes,
                       width: 48,
                       height: 48,
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain,
                       fallback: const Icon(Icons.image_not_supported_outlined),
                     ),
                   ),
@@ -1829,12 +1838,14 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
 class AddSaleScreen extends StatefulWidget {
   const AddSaleScreen({
     required this.products,
+    required this.customers,
     required this.onSave,
     this.selectedProductId,
     super.key,
   });
 
   final List<StoreProduct> products;
+  final List<StoreCustomer> customers;
   final void Function(List<SaleLine>, bool, String?) onSave;
   final String? selectedProductId;
 
@@ -1845,6 +1856,7 @@ class AddSaleScreen extends StatefulWidget {
 class _AddSaleScreenState extends State<AddSaleScreen> {
   final _quantities = <String, int>{};
   final _customerController = TextEditingController();
+  final _customerFocusNode = FocusNode();
   bool _isPaid = true;
 
   @override
@@ -1862,6 +1874,7 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
   @override
   void dispose() {
     _customerController.dispose();
+    _customerFocusNode.dispose();
     super.dispose();
   }
 
@@ -1925,12 +1938,55 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
                     ),
                     if (!_isPaid) ...[
                       const SizedBox(height: 12),
-                      TextField(
-                        controller: _customerController,
-                        decoration: const InputDecoration(
-                          labelText: 'Customer name',
-                          prefixIcon: Icon(Icons.person_outline),
-                          border: OutlineInputBorder(),
+                      RawAutocomplete<StoreCustomer>(
+                        textEditingController: _customerController,
+                        focusNode: _customerFocusNode,
+                        displayStringForOption: (customer) => customer.name,
+                        optionsBuilder: (value) {
+                          final query = value.text.trim().toLowerCase();
+                          return widget.customers.where(
+                            (customer) =>
+                                customer.name.toLowerCase().contains(query),
+                          );
+                        },
+                        fieldViewBuilder:
+                            (context, controller, focusNode, onSubmitted) =>
+                                TextField(
+                                  controller: controller,
+                                  focusNode: focusNode,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Customer name',
+                                    prefixIcon: Icon(Icons.person_outline),
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  onSubmitted: (_) => onSubmitted(),
+                                ),
+                        optionsViewBuilder: (context, onSelected, options) => Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 4,
+                            borderRadius: BorderRadius.circular(12),
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxHeight: 220),
+                              child: ListView.builder(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                itemCount: options.length,
+                                itemBuilder: (context, index) {
+                                  final customer = options.elementAt(index);
+                                  return ListTile(
+                                    title: Text(customer.name),
+                                    subtitle: customer.balance > 0
+                                        ? Text(
+                                            'Balance: ${_peso(customer.balance)}',
+                                          )
+                                        : null,
+                                    onTap: () => onSelected(customer),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -2078,7 +2134,7 @@ class UtangLedgerScreen extends StatefulWidget {
   });
 
   final List<StoreCustomer> customers;
-  final void Function(StoreCustomer, double) onPayment;
+  final void Function(StoreCustomer, PaymentRecord) onPayment;
 
   @override
   State<UtangLedgerScreen> createState() => _UtangLedgerScreenState();
@@ -2232,7 +2288,7 @@ class CustomerDetailScreen extends StatelessWidget {
   });
 
   final StoreCustomer customer;
-  final void Function(StoreCustomer, double) onPayment;
+  final void Function(StoreCustomer, PaymentRecord) onPayment;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -2300,9 +2356,14 @@ class CustomerDetailScreen extends StatelessWidget {
                           ),
                           title: Text(entry.description),
                           subtitle: Text(
-                            '${date.day}/${date.month}/${date.year} · '
-                            '${date.hour.toString().padLeft(2, '0')}:'
-                            '${date.minute.toString().padLeft(2, '0')}',
+                            [
+                              '${date.day}/${date.month}/${date.year} · '
+                                  '${date.hour.toString().padLeft(2, '0')}:'
+                                  '${date.minute.toString().padLeft(2, '0')}',
+                              if (entry.cashReceived != null)
+                                'Cash ${_peso(entry.cashReceived!)} · '
+                                    'Change ${_peso(entry.changeGiven ?? 0)}',
+                            ].join(' · '),
                           ),
                           trailing: Text(
                             '${entry.isPayment ? '−' : '+'}${_peso(entry.amount)}',
@@ -2336,48 +2397,88 @@ class CustomerDetailScreen extends StatelessWidget {
   );
 
   Future<void> _recordPayment(BuildContext context) async {
-    final controller = TextEditingController();
-    final amount = await showDialog<double>(
+    final payment = await showDialog<PaymentRecord>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Record payment'),
-        content: TextField(
-          controller: controller,
+      builder: (context) => _RecordPaymentDialog(balance: customer.balance),
+    );
+    if (payment != null) onPayment(customer, payment);
+  }
+}
+
+class _RecordPaymentDialog extends StatefulWidget {
+  const _RecordPaymentDialog({required this.balance});
+
+  final double balance;
+
+  @override
+  State<_RecordPaymentDialog> createState() => _RecordPaymentDialogState();
+}
+
+class _RecordPaymentDialogState extends State<_RecordPaymentDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Record payment'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _controller,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
-            labelText: 'Amount received',
+            labelText: 'Cash received',
             prefixText: '₱ ',
-            helperText: 'Balance: ${_peso(customer.balance)}',
+            helperText: 'Balance: ${_peso(widget.balance)}',
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final value = double.tryParse(controller.text);
-              if (value == null || value <= 0 || value > customer.balance) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Enter an amount up to ${_peso(customer.balance)}.',
-                    ),
-                  ),
-                );
-                return;
-              }
-              Navigator.pop(context, value);
-            },
-            child: const Text('Save payment'),
-          ),
-        ],
+        const SizedBox(height: 8),
+        Text('Change due: ${_peso(_changeDue)}'),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: _save, child: const Text('Save payment')),
+    ],
+  );
+
+  double get _changeDue {
+    final cashReceived = double.tryParse(_controller.text) ?? 0;
+    return cashReceived > widget.balance ? cashReceived - widget.balance : 0;
+  }
+
+  void _save() {
+    final cashReceived = double.tryParse(_controller.text);
+    if (cashReceived == null || cashReceived <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a cash amount greater than 0.')),
+      );
+      return;
+    }
+
+    final amountApplied = cashReceived > widget.balance
+        ? widget.balance
+        : cashReceived;
+    Navigator.pop(
+      context,
+      PaymentRecord(
+        cashReceived: cashReceived,
+        amountApplied: amountApplied,
+        changeGiven: cashReceived - amountApplied,
       ),
     );
-    controller.dispose();
-    if (amount != null) onPayment(customer, amount);
   }
 }
 
@@ -2450,8 +2551,6 @@ class DailySummaryScreen extends StatelessWidget {
                 icon: Icons.payments_outlined,
                 label: 'Paid sales',
                 value: _peso(paid),
-                tint: _lightGreen,
-                onTap: () {},
               ),
             ),
             const SizedBox(width: 12),
@@ -2460,8 +2559,6 @@ class DailySummaryScreen extends StatelessWidget {
                 icon: Icons.menu_book_outlined,
                 label: 'Utang sales',
                 value: _peso(credit),
-                tint: const Color(0xFFFFF3DF),
-                onTap: () {},
               ),
             ),
           ],
@@ -2474,8 +2571,6 @@ class DailySummaryScreen extends StatelessWidget {
                 icon: Icons.date_range_outlined,
                 label: 'This week',
                 value: _peso(weekTotal),
-                tint: const Color(0xFFFFEBD8),
-                onTap: () {},
               ),
             ),
             const SizedBox(width: 12),
@@ -2484,8 +2579,6 @@ class DailySummaryScreen extends StatelessWidget {
                 icon: Icons.calendar_month_outlined,
                 label: 'This month',
                 value: _peso(monthTotal),
-                tint: _lightGreen,
-                onTap: () {},
               ),
             ),
           ],
@@ -2601,6 +2694,10 @@ class _WeeklySalesChart extends StatelessWidget {
     return Card(
       elevation: 0,
       color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Color(0xFFE9E6DE)),
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
         child: SizedBox(

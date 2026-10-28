@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tindahub/main.dart';
@@ -35,6 +37,45 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Select items'), findsOneWidget);
     expect(find.text('1'), findsOneWidget);
+  });
+
+  testWidgets('shows selected image bytes on home and product details', (
+    WidgetTester tester,
+  ) async {
+    final product = StoreProduct(
+      id: 'local-image',
+      name: 'Local product',
+      price: 25,
+      stock: 5,
+      imageBytes: base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DashboardScreen(
+            products: [product],
+            customers: const [],
+            dailySales: 0,
+            ownerName: 'Test owner',
+            onOpenTab: (_) {},
+            onAddSale: () {},
+            onAddProduct: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    final memoryImages = find.byWidgetPredicate(
+      (widget) => widget is Image && widget.image is MemoryImage,
+    );
+    expect(memoryImages, findsOneWidget);
+
+    await tester.tap(find.text('Local product'));
+    await tester.pumpAndSettle();
+    expect(memoryImages, findsNWidgets(2));
   });
 
   testWidgets('updates the store owner name from the profile button', (
@@ -151,6 +192,83 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Aling Nena'), findsOneWidget);
     expect(find.text('Mang Jose'), findsNothing);
+  });
+
+  testWidgets('saves a partial payment and updates customer balance', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const TindaHubApp());
+
+    await tester.tap(find.text('Utang').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Aling Nena'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Record payment'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).last, '25');
+    await tester.tap(find.text('Save payment'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('₱100.00'), findsOneWidget);
+    expect(find.text('−₱25.00'), findsOneWidget);
+  });
+
+  testWidgets('suggests previous customers for an utang sale', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const TindaHubApp());
+
+    await tester.tap(find.text('Add Sale'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.add_circle_outline).first);
+    await tester.tap(find.text('Utang'));
+    await tester.pumpAndSettle();
+
+    final customerField = find.byType(TextField).last;
+    await tester.ensureVisible(customerField);
+    await tester.showKeyboard(customerField);
+    await tester.pumpAndSettle();
+    expect(find.text('Aling Nena'), findsOneWidget);
+    expect(find.text('Mang Jose'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).last, 'Aling');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Aling Nena'), findsOneWidget);
+    await tester.tap(find.text('Aling Nena'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save sale'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Utang').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Aling Nena'), findsOneWidget);
+    expect(find.text('₱183.00'), findsOneWidget);
+  });
+
+  testWidgets('calculates change when cash exceeds the utang balance', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const TindaHubApp());
+
+    await tester.tap(find.text('Utang').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Aling Nena'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Record payment'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).last, '200');
+    await tester.pumpAndSettle();
+    expect(find.text('Change due: ₱75.00'), findsOneWidget);
+
+    await tester.tap(find.text('Save payment'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('₱0.00'), findsOneWidget);
+    expect(find.text('−₱125.00'), findsOneWidget);
+    expect(find.textContaining('Cash ₱200.00 · Change ₱75.00'), findsOneWidget);
   });
 
   testWidgets('shows weekly, monthly, and best-selling summaries', (
