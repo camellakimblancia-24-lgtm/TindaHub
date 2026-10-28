@@ -700,6 +700,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _HomeStatCard(
+                label: 'TODAY’S SALES',
+                value: _peso(widget.dailySales),
+                icon: Icons.trending_up_rounded,
+                tint: const Color(0xFFFFEBD8),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _HomeStatCard(
+                label: 'Total utang',
+                value: _peso(totalUtang),
+                icon: Icons.menu_book_rounded,
+                tint: _lightGreen,
+                onTap: () => widget.onOpenTab(2),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 20),
         Row(
           children: [
@@ -818,29 +841,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               );
             },
           ),
-        const SizedBox(height: 22),
-        Row(
-          children: [
-            Expanded(
-              child: _HomeStatCard(
-                label: 'TODAY’S SALES',
-                value: _peso(widget.dailySales),
-                icon: Icons.trending_up_rounded,
-                tint: const Color(0xFFFFEBD8),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _HomeStatCard(
-                label: 'Total utang',
-                value: _peso(totalUtang),
-                icon: Icons.menu_book_rounded,
-                tint: _lightGreen,
-                onTap: () => widget.onOpenTab(2),
-              ),
-            ),
-          ],
-        ),
         const SizedBox(height: 22),
         Text(
           'Low-stock alerts',
