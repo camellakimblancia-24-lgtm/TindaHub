@@ -27,7 +27,7 @@ Widget _buildProductImage(
   required Widget fallback,
   double width = 56,
   double height = 56,
-  BoxFit fit = BoxFit.cover,
+  BoxFit fit = BoxFit.contain,
 }) {
   if (imageBytes != null) {
     return Image.memory(
@@ -172,10 +172,38 @@ class TindaHubApp extends StatefulWidget {
 class _TindaHubAppState extends State<TindaHubApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
   final _products = <StoreProduct>[
-    StoreProduct(id: '1', name: 'Rice (1 kg)', price: 58, stock: 12),
-    StoreProduct(id: '2', name: 'Instant noodles', price: 15, stock: 4),
-    StoreProduct(id: '3', name: 'Canned sardines', price: 27, stock: 8),
-    StoreProduct(id: '4', name: 'Bottled water', price: 20, stock: 2),
+    StoreProduct(
+      id: '1',
+      name: 'Rice (1 kg)',
+      price: 58,
+      stock: 12,
+      imageUrl:
+          'https://images.openfoodfacts.org/images/products/324/883/296/7611/front_fr.140.400.jpg',
+    ),
+    StoreProduct(
+      id: '2',
+      name: 'Instant noodles',
+      price: 15,
+      stock: 4,
+      imageUrl:
+          'https://images.openfoodfacts.org/images/products/880/107/311/6467/front_de.166.400.jpg',
+    ),
+    StoreProduct(
+      id: '3',
+      name: 'Canned sardines',
+      price: 27,
+      stock: 8,
+      imageUrl:
+          'https://images.openfoodfacts.org/images/products/500/017/105/3015/front_en.10.400.jpg',
+    ),
+    StoreProduct(
+      id: '4',
+      name: 'Bottled water',
+      price: 20,
+      stock: 2,
+      imageUrl:
+          'https://images.openfoodfacts.org/images/products/002/259/200/7014/front_en.37.400.jpg',
+    ),
   ];
   final _customers = <StoreCustomer>[
     StoreCustomer(
@@ -938,7 +966,7 @@ class _BrowseProductCard extends StatelessWidget {
                             product.imageUrl,
                             width: double.infinity,
                             height: double.infinity,
-                            fit: BoxFit.cover,
+                            fit: BoxFit.contain,
                             fallback: Center(
                               child: Text(
                                 _productEmoji(product),
@@ -1151,7 +1179,7 @@ class _ProductDetailsSheet extends StatelessWidget {
                       product.imageUrl,
                       width: double.infinity,
                       height: double.infinity,
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain,
                       fallback: Center(
                         child: Text(
                           _productEmoji(product),
@@ -1400,7 +1428,7 @@ class _ProductThumbnail extends StatelessWidget {
         imageBytes: product.imageBytes,
         width: 56,
         height: 56,
-        fit: BoxFit.cover,
+        fit: BoxFit.contain,
         fallback: fallback,
       ),
     );
@@ -1754,7 +1782,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                       imageBytes: _pickedImageBytes,
                       width: 48,
                       height: 48,
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain,
                       fallback: const Icon(Icons.image_not_supported_outlined),
                     ),
                   ),
