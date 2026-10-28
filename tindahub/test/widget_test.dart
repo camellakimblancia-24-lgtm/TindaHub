@@ -13,12 +13,12 @@ void main() {
     expect(find.text('TindaHub'), findsOneWidget);
     expect(find.text('Popular items'), findsOneWidget);
     expect(find.text('Instant noodles'), findsOneWidget);
+    expect(find.text('TODAY’S SALES'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Low-stock alerts'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text('TODAY’S SALES'), findsOneWidget);
     expect(find.text('Low-stock alerts'), findsOneWidget);
   });
 
