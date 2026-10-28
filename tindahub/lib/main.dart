@@ -964,6 +964,7 @@ class _BrowseProductCard extends StatelessWidget {
                           )
                         : _buildProductImage(
                             product.imageUrl,
+                            imageBytes: product.imageBytes,
                             width: double.infinity,
                             height: double.infinity,
                             fit: BoxFit.contain,
@@ -1177,6 +1178,7 @@ class _ProductDetailsSheet extends StatelessWidget {
                     )
                   : _buildProductImage(
                       product.imageUrl,
+                      imageBytes: product.imageBytes,
                       width: double.infinity,
                       height: double.infinity,
                       fit: BoxFit.contain,

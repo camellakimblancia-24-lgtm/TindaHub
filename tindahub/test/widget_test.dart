@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tindahub/main.dart';
@@ -35,6 +37,45 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Select items'), findsOneWidget);
     expect(find.text('1'), findsOneWidget);
+  });
+
+  testWidgets('shows selected image bytes on home and product details', (
+    WidgetTester tester,
+  ) async {
+    final product = StoreProduct(
+      id: 'local-image',
+      name: 'Local product',
+      price: 25,
+      stock: 5,
+      imageBytes: base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DashboardScreen(
+            products: [product],
+            customers: const [],
+            dailySales: 0,
+            ownerName: 'Test owner',
+            onOpenTab: (_) {},
+            onAddSale: () {},
+            onAddProduct: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    final memoryImages = find.byWidgetPredicate(
+      (widget) => widget is Image && widget.image is MemoryImage,
+    );
+    expect(memoryImages, findsOneWidget);
+
+    await tester.tap(find.text('Local product'));
+    await tester.pumpAndSettle();
+    expect(memoryImages, findsNWidgets(2));
   });
 
   testWidgets('updates the store owner name from the profile button', (
