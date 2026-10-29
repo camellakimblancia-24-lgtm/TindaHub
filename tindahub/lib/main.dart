@@ -1604,6 +1604,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   String? _imageUrl;
   Uint8List? _pickedImageBytes;
   String? _lookupError;
+  bool _lookupCanRetry = false;
   bool _isLookingUp = false;
 
   @override
@@ -1652,16 +1653,24 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     });
   }
 
+  void _setLookupError(String message, {bool canRetry = false}) {
+    setState(() {
+      _lookupError = message;
+      _lookupCanRetry = canRetry;
+    });
+  }
+
   Future<void> _lookupProduct() async {
     final barcode = _barcodeController.text.trim();
     if (barcode.isEmpty) {
-      setState(() => _lookupError = 'Enter a barcode to look up.');
+      _setLookupError('Enter a barcode to look up.');
       return;
     }
 
     setState(() {
       _isLookingUp = true;
       _lookupError = null;
+      _lookupCanRetry = false;
       _brand = null;
       _size = null;
       _imageUrl = null;
@@ -1671,10 +1680,9 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
       final product = await _openFoodFactsService.lookupByBarcode(barcode);
       if (!mounted) return;
       if (product == null) {
-        setState(() {
-          _lookupError =
-              'No product found. Enter the product details manually.';
-        });
+        _setLookupError(
+          'No product found. Enter the product details manually.',
+        );
         return;
       }
       setState(() {
@@ -1685,9 +1693,34 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
         _imageUrl = product.imageUrl;
         _pickedImageBytes = null;
       });
-    } on Exception catch (error) {
+    } on InvalidBarcodeException catch (error) {
       if (!mounted) return;
-      setState(() => _lookupError = 'Product lookup failed: $error');
+      _setLookupError(error.message);
+    } on LookupOfflineException {
+      if (!mounted) return;
+      _setLookupError(
+        'No internet connection. Check your connection and retry, '
+        'or enter the details manually.',
+        canRetry: true,
+      );
+    } on LookupServerException {
+      if (!mounted) return;
+      _setLookupError(
+        'The product database is having problems. Retry, '
+        'or enter the details manually.',
+        canRetry: true,
+      );
+    } on FormatException {
+      if (!mounted) return;
+      _setLookupError(
+        'The product data could not be read. Enter the details manually.',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      _setLookupError(
+        'Something went wrong. Retry, or enter the details manually.',
+        canRetry: true,
+      );
     } finally {
       if (mounted) setState(() => _isLookingUp = false);
     }
@@ -1731,9 +1764,22 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
             const SizedBox(height: 4),
             Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                _lookupError!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _lookupError!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                  if (_lookupCanRetry)
+                    TextButton.icon(
+                      onPressed: _isLookingUp ? null : _lookupProduct,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                    ),
+                ],
               ),
             ),
           ],
