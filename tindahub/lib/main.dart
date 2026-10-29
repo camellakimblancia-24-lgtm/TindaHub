@@ -672,21 +672,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Row(
           children: [
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Good morning,',
-                    style: TextStyle(color: Color(0xFF77796F), fontSize: 14),
+              child: RichText(
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                text: TextSpan(
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: _ink,
                   ),
-                  Text(
-                    '${widget.ownerName} 👋',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: _ink,
-                    ),
-                  ),
-                ],
+                  children: [
+                    const TextSpan(text: 'Welcome, '),
+                    TextSpan(text: '${widget.ownerName}!'),
+                  ],
+                ),
               ),
             ),
             Container(
