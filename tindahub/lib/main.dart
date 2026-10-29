@@ -3,9 +3,16 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'open_food_facts.dart';
+import 'package:provider/provider.dart';
+import 'store_provider.dart';
 
 void main() {
-  runApp(const TindaHubApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => StoreProvider(),
+      child: const TindaHubApp(),
+    ),
+  );
 }
 
 const _green = Color(0xFF527453);
