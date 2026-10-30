@@ -1643,7 +1643,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   }
 
   Future<void> _pickProductImage() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.image,
       withData: true,
     );
